@@ -1,6 +1,5 @@
 import { Box, Button, Stack, useToast } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { useState } from 'react';
 import { useMutation, useQueryClient } from 'react-query';
 
@@ -8,14 +7,14 @@ import { api } from '../../services/api';
 import { FileInput } from '../Input/FileInput';
 import { TextInput } from '../Input/TextInput';
 
-interface FormValues {
-  image: FileList;
-  title: string;
-  description: string;
-}
-
 interface FormAddImageProps {
   closeModal: () => void;
+}
+
+interface NewImageProps {
+  url: string;
+  title: string;
+  description: string;
 }
 
 export function FormAddImage({ closeModal }: FormAddImageProps): JSX.Element {
@@ -23,16 +22,18 @@ export function FormAddImage({ closeModal }: FormAddImageProps): JSX.Element {
   const [localImageUrl, setLocalImageUrl] = useState('');
   const toast = useToast();
 
+  const acceptedTypes =
+    /(?:([^:/?#]+):)?(?:([^/?#]*))?([^?#](?:jpeg|gif|png))(?:\?([^#]*))?(?:#(.*))?/g;
+
   const formValidations = {
     image: {
       required: 'Arquivo obrigatório',
       validate: {
         lessThan10MB: fileList =>
-          fileList[0].size < 10485760 || 'O arquivo deve ser menor que 10MB',
+          fileList[0].size < 10000000 || 'O arquivo deve ser menor que 10MB',
         acceptedFormats: fileList =>
-          /(?:([^:/?#]+):)?(?:([^/?#]*))?([^?#](?:jpeg|gif|png))(?:\?([^#]*))?(?:#(.*))?/g.test(
-            fileList[0].type
-          ) || 'Somente são aceitos arquivos PNG, JPEG e GIF',
+          acceptedTypes.test(fileList[0].type) ||
+          'Somente são aceitos arquivos PNG, JPEG e GIF',
       },
     },
     title: {
@@ -56,21 +57,27 @@ export function FormAddImage({ closeModal }: FormAddImageProps): JSX.Element {
   };
 
   const queryClient = useQueryClient();
+
   const mutation = useMutation(
-    async formData => {
-      const data = await api.post('/images', formData);
-      return data;
+    async (image: NewImageProps) => {
+      await api.post('/api/images', {
+        ...image,
+        url: imageUrl,
+      });
     },
     {
-      onSuccess: () => queryClient.invalidateQueries('images'),
+      onSuccess: () => {
+        queryClient.invalidateQueries('images');
+      },
     }
   );
 
   const { register, handleSubmit, reset, formState, setError, trigger } =
     useForm();
+
   const { errors } = formState;
 
-  const onSubmit = async (data: FormValues): Promise<void> => {
+  const onSubmit = async (data: NewImageProps): Promise<void> => {
     try {
       if (!imageUrl) {
         toast({
@@ -78,28 +85,26 @@ export function FormAddImage({ closeModal }: FormAddImageProps): JSX.Element {
           description:
             'É preciso adicionar e aguardar o upload de uma imagem antes de realizar o cadastro.',
           status: 'error',
-          duration: 3000,
+          duration: 1000,
           isClosable: true,
         });
       }
 
-      const response = await mutation.mutateAsync(data);
+      await mutation.mutateAsync(data);
 
-      if (response.status === 201) {
-        toast({
-          title: 'Imagem cadastrada',
-          description: 'Sua imagem foi cadastrada com sucesso.',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-      }
+      toast({
+        title: 'Imagem cadastrada',
+        description: 'Sua imagem foi cadastrada com sucesso',
+        status: 'success',
+        duration: 1000,
+        isClosable: true,
+      });
     } catch {
       toast({
         title: 'Falha no cadastro',
-        description: 'Ocorreu um erro ao tentar cadastrar a sua imagem.',
+        description: 'Ocorreu um erro ao tentar cadastrar a imagem',
         status: 'error',
-        duration: 3000,
+        duration: 1000,
         isClosable: true,
       });
     } finally {
@@ -119,20 +124,20 @@ export function FormAddImage({ closeModal }: FormAddImageProps): JSX.Element {
           setLocalImageUrl={setLocalImageUrl}
           setError={setError}
           trigger={trigger}
-          error={errors.image}
           {...register('image', formValidations.image)}
+          error={errors.image}
         />
 
         <TextInput
           placeholder="Título da imagem..."
-          error={errors.title}
           {...register('title', formValidations.title)}
+          error={errors.title}
         />
 
         <TextInput
           placeholder="Descrição da imagem..."
-          error={errors.description}
           {...register('description', formValidations.description)}
+          error={errors.description}
         />
       </Stack>
 

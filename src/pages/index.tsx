@@ -1,36 +1,21 @@
-import { Box, Button } from '@chakra-ui/react';
-import Head from 'next/head';
+import { Button, Box } from '@chakra-ui/react';
 import { useMemo } from 'react';
 import { useInfiniteQuery } from 'react-query';
-import { CardList } from '../components/CardList';
-import { Error } from '../components/Error';
+
 import { Header } from '../components/Header';
-import { Loading } from '../components/Loading';
+import { CardList } from '../components/CardList';
 import { api } from '../services/api';
-
-interface Card {
-  title: string;
-  description: string;
-  url: string;
-  ts: number;
-  id: string;
-}
-
-type IInfiniteQueryResponse = {
-  after: number | null;
-  data: Card[];
-};
+import { Loading } from '../components/Loading';
+import { Error } from '../components/Error';
 
 export default function Home(): JSX.Element {
-  const getImages = async ({
-    pageParam = null,
-  }): Promise<IInfiniteQueryResponse> => {
-    const { data } = await api.get('/images', {
+  const fetchImages = async ({ pageParam = null }) => {
+    const { data } = await api.get('/api/images', {
       params: {
         after: pageParam,
       },
     });
-    console.log(data);
+
     return data;
   };
 
@@ -41,37 +26,36 @@ export default function Home(): JSX.Element {
     isFetchingNextPage,
     fetchNextPage,
     hasNextPage,
-  } = useInfiniteQuery<unknown, unknown, IInfiniteQueryResponse>(
-    'images',
-    getImages,
-    {
-      getNextPageParam: (lastPage: { after: number }) => lastPage.after,
-    }
-  );
+  } = useInfiniteQuery('images', fetchImages, {
+    getNextPageParam: lastPage => lastPage?.after || null,
+  });
 
   const formattedData = useMemo(() => {
-    const imgsData = data?.pages.map(page => page.data).flat();
-    return imgsData;
+    const formattedData = data?.pages.flatMap(imagesData => {
+      return imagesData.data.flat();
+    });
+
+    return formattedData;
   }, [data]);
 
-  if (isLoading) return <Loading />;
+  if (isLoading && !isError) {
+    return <Loading />;
+  }
 
-  if (isError) return <Error />;
+  // // TODO RENDER ERROR SCREEN
+  if (isError && !isLoading) {
+    return <Error />;
+  }
 
   return (
     <>
-      <Head>
-        <title>UpFi</title>
-        <link rel="shortcut icon" href="logo.svg" />
-      </Head>
-
       <Header />
 
       <Box maxW={1120} px={20} mx="auto" my={20}>
         <CardList cards={formattedData} />
         {hasNextPage && (
-          <Button mt={8} onClick={() => fetchNextPage()}>
-            {isFetchingNextPage ? 'Carregando' : 'Carregar mais'}
+          <Button onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+            {isFetchingNextPage ? 'Carregando...' : 'Carregar mais'}
           </Button>
         )}
       </Box>

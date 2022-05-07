@@ -1,10 +1,10 @@
 import {
   Box,
   Heading,
+  Text,
   Image,
   Skeleton,
   SkeletonText,
-  Text,
 } from '@chakra-ui/react';
 import { useState } from 'react';
 
@@ -23,9 +23,6 @@ interface CardProps {
 export function Card({ data, viewImage }: CardProps): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
 
-  console.log(data, 'dataCard');
-
-  console.log(viewImage, 'viewImageCard');
   return (
     <Box key={data.ts} borderRadius="md" bgColor="pGray.800">
       <Skeleton isLoaded={!isLoading}>
